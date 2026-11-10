@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Protocol, Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from transitflow.booking.models import Booking, OutboxEvent
@@ -20,6 +20,7 @@ class BookingRepository(Protocol):
 class OutboxRepository(Protocol):
     async def add(self, event: OutboxEvent) -> None: ...
     async def find_unsent(self, limit: int = 100) -> Sequence[OutboxEvent]: ...
+    async def count_unsent(self) -> int: ...
 
 
 class BookingUnitOfWork(Protocol):
@@ -58,6 +59,12 @@ class SqlOutboxRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def count_unsent(self) -> int:
+        result = await self._session.execute(
+            select(func.count()).select_from(OutboxEvent).where(OutboxEvent.sent.is_(False))
+        )
+        return int(result.scalar_one())
 
 
 class SqlAlchemyBookingUnitOfWork:

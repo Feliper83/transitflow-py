@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from transitflow.db import create_engine, create_session_factory
 from transitflow.logging_config import configure_logging
+from transitflow.metrics import setup_metrics
 from transitflow.payment.config import PaymentSettings
 from transitflow.payment.consumer import PaymentConsumer
 from transitflow.payment.models import Base
@@ -39,6 +40,7 @@ def create_app(settings: PaymentSettings | None = None) -> FastAPI:
         await engine.dispose()
 
     app = FastAPI(title="TransitFlow payment-service", lifespan=lifespan)
+    setup_metrics(app)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

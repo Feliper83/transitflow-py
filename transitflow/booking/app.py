@@ -21,6 +21,7 @@ from transitflow.booking.store import BookingNotFoundError, BookingStore
 from transitflow.booking.trip_client import TripClient
 from transitflow.db import create_engine, create_session_factory
 from transitflow.logging_config import configure_logging, set_correlation_id
+from transitflow.metrics import setup_metrics
 
 
 def create_app(settings: BookingSettings | None = None) -> FastAPI:
@@ -59,6 +60,7 @@ def create_app(settings: BookingSettings | None = None) -> FastAPI:
         await engine.dispose()
 
     app = FastAPI(title="TransitFlow booking-service", lifespan=lifespan)
+    setup_metrics(app)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

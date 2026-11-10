@@ -125,6 +125,38 @@ curl http://localhost:8082/api/bookings/1
 > # → ends CANCELLED, and trip 3's seats_available returns to 20
 > ```
 
+## Observability
+
+Every service exposes Prometheus metrics at `GET /metrics`, scraped by a bundled
+**Prometheus** and visualised in a pre-provisioned **Grafana** dashboard — all
+started by the same `docker compose up`.
+
+| Tool | URL | Notes |
+|------|-----|-------|
+| Prometheus | http://localhost:9090 | Scrapes `trip-service:8081`, `booking-service:8082`, `payment-service:8083` at `/metrics` every 5s |
+| Grafana | http://localhost:3000 | Anonymous access as **Admin** (no login); dashboard **"TransitFlow — SAGA & Payments"** is pre-loaded |
+
+**Business metrics** (identical names across the Java/Go/Python ports, so one
+dashboard works for all three):
+
+| Metric | Type | Labels | Meaning |
+|--------|------|--------|---------|
+| `transitflow_bookings_created_total` | Counter | — | Bookings created (SAGA started) |
+| `transitflow_bookings_total` | Counter | `status` (`CONFIRMED`/`CANCELLED`) | Bookings reaching a terminal state |
+| `transitflow_payments_total` | Counter | `result` (`COMPLETED`/`FAILED`) | Payments processed |
+| `transitflow_outbox_pending` | Gauge | — | Unsent transactional-outbox rows (updated each relay poll) |
+| `transitflow_saga_duration_seconds` | Histogram | — | Seconds from booking creation to terminal state |
+| `transitflow_http_request_duration_seconds` | Histogram | `method`, `handler`, `status` | HTTP request latency (custom middleware) |
+
+> The HTTP latency metric is emitted by a small middleware in
+> [`transitflow/metrics.py`](transitflow/metrics.py) — its exact name is
+> **`transitflow_http_request_duration_seconds`** (use
+> `transitflow_http_request_duration_seconds_bucket` with `histogram_quantile`).
+>
+> **Single worker required:** prometheus-client's default registry is
+> in-process, so each service must run with **one** uvicorn worker (the default
+> here). With multiple workers you'd need prometheus-client multiprocess mode.
+
 ## What this demonstrates
 
 - **Database-per-service** with no shared schema — services integrate only through

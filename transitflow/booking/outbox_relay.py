@@ -14,6 +14,7 @@ from aiokafka import AIOKafkaProducer
 
 from transitflow.booking.repository import BookingUnitOfWork
 from transitflow.kafka import create_string_producer
+from transitflow.metrics import outbox_pending
 
 log = logging.getLogger(__name__)
 
@@ -72,4 +73,6 @@ class OutboxRelay:
                     event.event_type,
                     event.topic,
                 )
+            # Reflect the backlog remaining after this batch for the dashboard gauge.
+            outbox_pending.set(await uow.outbox.count_unsent())
             return len(pending)

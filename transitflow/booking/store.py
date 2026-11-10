@@ -12,9 +12,10 @@ import logging
 from decimal import Decimal
 from typing import Callable
 
-from transitflow.booking.models import Booking, OutboxEvent
+from transitflow.booking.models import Booking, BookingStatus, OutboxEvent
 from transitflow.booking.repository import BookingUnitOfWork
 from transitflow.booking.schemas import BookingEvent, ProcessPaymentCommand
+from transitflow.metrics import bookings_created_total, observe_saga
 from transitflow.topics import BOOKING_EVENTS, PAYMENT_COMMANDS
 
 log = logging.getLogger(__name__)
@@ -55,6 +56,7 @@ class BookingStore:
         async with self._uow_factory() as uow:
             booking = Booking(trip_id, passenger_name, seat_count, amount, correlation_id)
             await uow.bookings.add(booking)
+            bookings_created_total.inc()
             log.info("Created booking %s (PENDING) for trip %s", booking.id, trip_id)
             return booking
 
@@ -93,6 +95,7 @@ class BookingStore:
                     ),
                 )
             )
+            observe_saga(BookingStatus.CANCELLED.value, booking.created_at)
             log.info("Booking %s cancelled: no seats available", booking_id)
 
     async def confirm(self, booking_id: int) -> None:
@@ -115,6 +118,7 @@ class BookingStore:
                     ),
                 )
             )
+            observe_saga(BookingStatus.CONFIRMED.value, booking.created_at)
             log.info("Booking %s CONFIRMED", booking_id)
 
     async def cancel_after_payment_failure(self, booking_id: int, reason: str) -> None:
@@ -130,6 +134,7 @@ class BookingStore:
                     ),
                 )
             )
+            observe_saga(BookingStatus.CANCELLED.value, booking.created_at)
             log.info("Booking %s CANCELLED after payment failure: %s", booking_id, reason)
 
     @staticmethod

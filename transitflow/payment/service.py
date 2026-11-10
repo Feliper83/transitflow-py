@@ -8,6 +8,7 @@ import logging
 from decimal import Decimal
 from typing import Callable
 
+from transitflow.metrics import payments_total
 from transitflow.payment.models import Payment, PaymentStatus
 from transitflow.payment.repository import PaymentUnitOfWork
 from transitflow.payment.schemas import PaymentResultEvent, ProcessPaymentCommand
@@ -54,6 +55,7 @@ class PaymentService:
                     None,
                 )
             await uow.payments.add(payment)
+            payments_total.labels(result=payment.status.value).inc()
             log.info(
                 "Payment for booking %s -> %s (amount=%s)",
                 command.booking_id,

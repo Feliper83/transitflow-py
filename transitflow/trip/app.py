@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from transitflow.db import create_engine, create_session_factory
 from transitflow.logging_config import configure_logging
+from transitflow.metrics import setup_metrics
 from transitflow.trip.config import TripSettings
 from transitflow.trip.models import Base
 from transitflow.trip.repository import SqlAlchemyTripUnitOfWork
@@ -40,6 +41,7 @@ def create_app(settings: TripSettings | None = None) -> FastAPI:
         await engine.dispose()
 
     app = FastAPI(title="TransitFlow trip-service", lifespan=lifespan)
+    setup_metrics(app)
 
     @app.get("/health")
     async def health() -> dict[str, str]:

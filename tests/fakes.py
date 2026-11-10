@@ -117,6 +117,9 @@ class FakeOutboxRepository:
     async def find_unsent(self, limit: int = 100) -> Sequence[OutboxEvent]:
         return [e for e in self._events if not e.sent][:limit]
 
+    async def count_unsent(self) -> int:
+        return sum(1 for e in self._events if not e.sent)
+
 
 class FakeBookingUnitOfWork:
     def __init__(self, bookings: dict[int, Booking], events: list[OutboxEvent]) -> None:
